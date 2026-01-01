@@ -184,7 +184,7 @@
       .controls {
         gap: 6px;
       }
-      .controls > div:has(label) {
+      .controls > div:has(label) label {
         display: none;
       }
       input, select, button {
@@ -483,6 +483,14 @@
       font-size: 16px;
       line-height: 1;
     }
+    
+    /* Sidebar share button */
+    #sidebar-share:hover {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(16, 185, 129, 0.35));
+      border-color: rgba(59, 130, 246, 0.6);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -531,9 +539,43 @@
           <li>Gap shrinks when <span class="mono">volatility</span> increases.</li>
           <li>Spikes add slight "turbulence".</li>
         </ul>
-        <div style="margin-top:10px;">
-          <b>Energy 2025</b>: scores are stored in <span class="mono">localStorage</span> and not cheat-proof.
+      </div>
+      
+      <!-- The Challenge Section -->
+      <div style="margin-top:16px; padding-top:12px; border-top:1px solid #1f2a37;">
+        <div style="font-weight:700; margin-bottom:8px;">⚡ The Challenge</div>
+        <div class="hint">
+          <p style="margin:0 0 10px 0;">
+            The tunnel you're navigating is generated from <b>real EPEX Day-Ahead electricity prices of 2025</b>. 
+            Every spike, dip, and twist reflects actual market volatility.
+          </p>
+          <p style="margin:0 0 10px 0;">
+            Your mission: <b>beat the volatility of 2025</b>. The better you navigate the price swings, 
+            the higher your score — just like flexible assets create value by responding to price spikes.
+          </p>
+          <p style="margin:0 0 10px 0;">
+            This is <b>flex value</b> in action: the ability to respond to market dynamics. 
+            In the real world, this could be batteries, demand response, or smart charging strategies.
+          </p>
+          <div style="margin-top:12px; padding:10px; background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); border-radius:8px;">
+            <span style="font-size:13px;">
+              💡 Want to maximize your flex value in the real energy market? 
+              <a href="https://jor.energy" target="_blank" rel="noopener" style="color:#10b981; text-decoration:underline;">
+                jor.energy
+              </a> can help.
+            </span>
+          </div>
         </div>
+      </div>
+      
+      <!-- Share Button in Sidebar -->
+      <div style="margin-top:16px; padding-top:12px; border-top:1px solid #1f2a37;">
+        <button id="sidebar-share" style="width:100%; padding:12px; background:linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.2)); border:1px solid rgba(59, 130, 246, 0.4); border-radius:10px; color:#e6edf3; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s;">
+          📤 Share Your Progress
+        </button>
+        <p style="margin:8px 0 0 0; font-size:11px; color:#6b7b8a; text-align:center;">
+          Share anytime — no pressure!
+        </p>
       </div>
       
       <!-- Leaderboard Panel -->
