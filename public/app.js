@@ -1805,17 +1805,24 @@ async function flap() {
   state.flapBits[byteIndex] |= (1 << bitIndex);
 }
 window.addEventListener("keydown", (e) => {
-  if (e.code === "Space") {
+  // Ignore keyboard shortcuts when typing in input fields
+  const isTyping = document.activeElement && 
+    (document.activeElement.tagName === 'INPUT' || 
+     document.activeElement.tagName === 'TEXTAREA' ||
+     document.activeElement.isContentEditable);
+  
+  if (e.code === "Space" && !isTyping) {
     e.preventDefault();
     flap();
   }
   // Use Enter to dismiss celebrations (prevents accidental clicks)
-  if (e.code === "Enter") {
+  // Allow Enter in inputs for form submission
+  if (e.code === "Enter" && !isTyping) {
     e.preventDefault();
     dismissCelebration();
   }
   // Use R to start over completely (clear checkpoint)
-  if (e.code === "KeyR" && !state.playing) {
+  if (e.code === "KeyR" && !state.playing && !isTyping) {
     e.preventDefault();
     startOver();
   }
