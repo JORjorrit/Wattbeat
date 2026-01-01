@@ -1,10 +1,17 @@
 // API endpoint for highscores - Vercel Serverless Function
 import { createClient } from '@supabase/supabase-js';
 
+// Check environment variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  console.error('Missing Supabase environment variables!');
+  console.error('SUPABASE_URL:', process.env.SUPABASE_URL ? 'set' : 'missing');
+  console.error('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? 'set' : 'missing');
+}
+
 // Initialize Supabase client
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_ANON_KEY || ''
 );
 
 export default async function handler(req, res) {
@@ -18,6 +25,14 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Check if Supabase is configured
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    console.error('Supabase not configured - missing environment variables');
+    return res.status(500).json({ 
+      error: 'Database not configured. Please check server environment variables.' 
+    });
+  }
+
   try {
     if (req.method === 'GET') {
       return await handleGet(req, res);
@@ -28,7 +43,10 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error('API Error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ 
+      error: error.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
 
@@ -72,7 +90,11 @@ async function handleGet(req, res) {
     .limit(lim);
 
   if (error) {
-    return res.status(500).json({ error: error.message });
+    console.error('Supabase query error:', error);
+    return res.status(500).json({ 
+      error: error.message || 'Failed to fetch leaderboard',
+      code: error.code
+    });
   }
 
   // Add rank to each entry
@@ -113,7 +135,11 @@ async function handlePost(req, res) {
 
   if (fetchError && fetchError.code !== 'PGRST116') {
     // PGRST116 = no rows found, which is fine
-    return res.status(500).json({ error: fetchError.message });
+    console.error('Supabase fetch error:', fetchError);
+    return res.status(500).json({ 
+      error: fetchError.message || 'Failed to check existing score',
+      code: fetchError.code
+    });
   }
 
   let result;
@@ -132,7 +158,11 @@ async function handlePost(req, res) {
         .single();
 
       if (error) {
-        return res.status(500).json({ error: error.message });
+        console.error('Supabase update error:', error);
+        return res.status(500).json({ 
+          error: error.message || 'Failed to update score',
+          code: error.code
+        });
       }
       result = { ...data, updated: true, previous_score: existing.score };
     } else {
@@ -153,7 +183,11 @@ async function handlePost(req, res) {
       .single();
 
     if (error) {
-      return res.status(500).json({ error: error.message });
+      console.error('Supabase insert error:', error);
+      return res.status(500).json({ 
+        error: error.message || 'Failed to insert score',
+        code: error.code
+      });
     }
     result = { ...data, created: true };
   }

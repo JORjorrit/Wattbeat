@@ -1,25 +1,25 @@
-// CaveFlyer Energy 2025 - Vercel + Supabase version
+// Wattbeat Energy 2025 - Vercel + Supabase version
 // Highscores are stored in Supabase and can be shared socially
 
 const $ = (id) => document.getElementById(id);
 
 // --------- Session & Nickname Management ----------
 function getSessionId() {
-  let id = localStorage.getItem('caveflyer_session');
+  let id = localStorage.getItem('wattbeat_session');
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem('caveflyer_session', id);
+    localStorage.setItem('wattbeat_session', id);
   }
   return id;
 }
 
 function getNickname() {
-  return localStorage.getItem('caveflyer_nickname') || '';
+  return localStorage.getItem('wattbeat_nickname') || '';
 }
 
 function setNickname(name) {
   const sanitized = (name || '').trim().slice(0, 20);
-  localStorage.setItem('caveflyer_nickname', sanitized);
+  localStorage.setItem('wattbeat_nickname', sanitized);
   return sanitized;
 }
 
@@ -105,9 +105,9 @@ function getShareText(score, rank, difficulty, nickname) {
   const rankText = rank ? `#${rank}` : '';
   
   const messages = [
-    `I scored ${score} points on CaveFlyer Energy 2025 ${diffName} mode! ${rankText ? `Ranked ${rankText} globally!` : ''} Can you beat me? ⚡🚀`,
+    `I scored ${score} points on Wattbeat Energy 2025 ${diffName} mode! ${rankText ? `Ranked ${rankText} globally!` : ''} Can you beat me? ⚡🚀`,
     `Just flew through 2025 electricity prices and scored ${score}! ${rankText ? `I'm ${rankText} on the ${diffName} leaderboard!` : ''} ⚡🎮`,
-    `${score} points navigating volatile energy markets in CaveFlyer! ${rankText ? `${rankText} worldwide on ${diffName}!` : ''} Think you can do better? 🔥`,
+    `${score} points navigating volatile energy markets in Wattbeat! ${rankText ? `${rankText} worldwide on ${diffName}!` : ''} Think you can do better? 🔥`,
   ];
   
   return messages[Math.floor(Math.random() * messages.length)];
@@ -168,7 +168,7 @@ async function nativeShare(score, rank, difficulty, nickname, url) {
   
   try {
     await navigator.share({
-      title: 'CaveFlyer Energy 2025',
+      title: 'Wattbeat Energy 2025',
       text: getShareText(score, rank, difficulty, nickname),
       url: url
     });
@@ -286,7 +286,7 @@ function toast(msg) {
 
 // --------- Progression (local) ----------
 // Everyone starts on Easy. Finish the full year to unlock the next mode.
-const PROG_KEY = "caveflyer_energy2025_unlocked"; // stores max unlocked difficulty (0..2)
+const PROG_KEY = "wattbeat_energy2025_unlocked"; // stores max unlocked difficulty (0..2)
 function getUnlockedDifficulty() {
   const v = parseInt(localStorage.getItem(PROG_KEY) || "0", 10);
   return Number.isFinite(v) ? clamp(v, 0, 2) : 0;
@@ -993,7 +993,7 @@ function captureFailure() {
   // Save to localStorage (without screenshots to save space)
   const logForStorage = state.failureLog.map(f => ({ ...f, screenshot: undefined }));
   try {
-    localStorage.setItem("caveflyer_failure_log", JSON.stringify(logForStorage));
+    localStorage.setItem("wattbeat_failure_log", JSON.stringify(logForStorage));
   } catch (e) {
     console.warn("Could not save failure log:", e);
   }
@@ -1030,7 +1030,7 @@ function downloadFailureLog() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `caveflyer-failures-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `wattbeat-failures-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
   toast("Failure log downloaded!");
@@ -1038,7 +1038,7 @@ function downloadFailureLog() {
 
 function clearFailureLog() {
   state.failureLog = [];
-  localStorage.removeItem("caveflyer_failure_log");
+  localStorage.removeItem("wattbeat_failure_log");
   updateFailureUI();
   toast("Failure log cleared");
 }
@@ -1526,14 +1526,23 @@ async function endRun(finished=false) {
     if (state.nickname) {
       try {
         const result = await submitScore(state.score, cur, state.nickname);
-        if (result.rank) {
+        if (result.error) {
+          console.error('Score submission error:', result.error);
+          toast(`Failed to submit score: ${result.error}`);
+        } else if (result.rank) {
           state.lastSubmittedRank = result.rank;
           toast(`Score submitted! Rank #${result.rank}`);
+          // Refresh leaderboard
+          refreshLeaderboard(cur);
+        } else {
+          console.warn('Score submitted but no rank returned:', result);
+          toast('Score submitted!');
+          // Refresh leaderboard anyway
+          refreshLeaderboard(cur);
         }
-        // Refresh leaderboard
-        refreshLeaderboard(cur);
       } catch (err) {
         console.error('Failed to submit score:', err);
+        toast(`Failed to submit score: ${err.message}`);
       }
     }
     
@@ -1545,7 +1554,7 @@ async function endRun(finished=false) {
   if (state.score > state.best) {
     state.best = state.score;
     if (state.levelHash) {
-      localStorage.setItem("caveflyer_energy2025_best_" + $("diff").value, String(Math.floor(state.best)));
+      localStorage.setItem("wattbeat_energy2025_best_" + $("diff").value, String(Math.floor(state.best)));
     }
   }
   updateStatsUI();
@@ -1822,7 +1831,7 @@ const algo = "v1";
     state.vy = 0;
     state.py = safeSpawnY(state.level, state.px, state.x, wrap.clientHeight);
     state.graceUntil = performance.now() + 800;
-    const bestStr = localStorage.getItem("caveflyer_energy2025_best_" + diff);
+    const bestStr = localStorage.getItem("wattbeat_energy2025_best_" + diff);
     state.best = bestStr ? parseInt(bestStr, 10) : 0;
     state.playing = false;
     state.score = 0;
@@ -2029,7 +2038,7 @@ async function init() {
   
   // Load failure log from localStorage
   try {
-    const savedLog = localStorage.getItem("caveflyer_failure_log");
+    const savedLog = localStorage.getItem("wattbeat_failure_log");
     if (savedLog) {
       state.failureLog = JSON.parse(savedLog);
       updateFailureUI();
