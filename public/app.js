@@ -1501,16 +1501,44 @@ async function endRun(finished=false) {
   state.finished = finished;
   state.unlockedNew = false;
   
+  const cur = +$("diff").value;
+  
   // Capture failure data if crashed (not finished)
   if (!finished && state.level) {
     captureFailure();
+  }
+  
+  // Submit score to leaderboard if we have a nickname (both finished and crashed games)
+  if (state.nickname && state.score > 0) {
+    try {
+      const result = await submitScore(state.score, cur, state.nickname);
+      if (result.error) {
+        console.error('Score submission error:', result.error);
+        toast(`Failed to submit score: ${result.error}`);
+      } else if (result.rank) {
+        state.lastSubmittedRank = result.rank;
+        toast(`Score submitted! Rank #${result.rank}`);
+        // Refresh leaderboard
+        refreshLeaderboard(cur);
+      } else {
+        console.warn('Score submitted but no rank returned:', result);
+        toast('Score submitted!');
+        // Refresh leaderboard anyway
+        refreshLeaderboard(cur);
+      }
+    } catch (err) {
+      console.error('Failed to submit score:', err);
+      toast(`Failed to submit score: ${err.message}`);
+    }
+  } else if (!state.nickname && state.score > 0) {
+    // Remind user to set nickname to submit scores
+    console.log('Score not submitted: nickname not set');
   }
   
   if (finished) {
     // Clear checkpoint when finishing the year - next game starts fresh
     state.checkpoint = null;
     
-    const cur = +$("diff").value;
     state.finishedDiff = cur;
     const unlocked = getUnlockedDifficulty();
     if (cur >= unlocked && cur < 2) {
@@ -1521,30 +1549,6 @@ async function endRun(finished=false) {
     // Celebration intensity: Hard gets a bigger show
     const intensity = cur === 2 ? 1.8 : cur === 1 ? 1.3 : 1.0;
     spawnFireworks(state, intensity);
-    
-    // Submit score to leaderboard if we have a nickname
-    if (state.nickname) {
-      try {
-        const result = await submitScore(state.score, cur, state.nickname);
-        if (result.error) {
-          console.error('Score submission error:', result.error);
-          toast(`Failed to submit score: ${result.error}`);
-        } else if (result.rank) {
-          state.lastSubmittedRank = result.rank;
-          toast(`Score submitted! Rank #${result.rank}`);
-          // Refresh leaderboard
-          refreshLeaderboard(cur);
-        } else {
-          console.warn('Score submitted but no rank returned:', result);
-          toast('Score submitted!');
-          // Refresh leaderboard anyway
-          refreshLeaderboard(cur);
-        }
-      } catch (err) {
-        console.error('Failed to submit score:', err);
-        toast(`Failed to submit score: ${err.message}`);
-      }
-    }
     
     // Show share modal for completed runs
     state.showShareModal = true;
