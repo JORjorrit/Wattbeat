@@ -1,0 +1,22 @@
+{
+  "name": "caveflyer-energy2025",
+  "version": "1.0.0",
+  "description": "CaveFlyer Energy 2025 - A tunnel flying game generated from EPEX energy prices",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build needed'",
+    "start": "npx serve public"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@vercel/og": "^0.6.2"
+  },
+  "devDependencies": {
+    "vercel": "^37.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+
