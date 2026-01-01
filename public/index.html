@@ -415,6 +415,37 @@
     .share-btn.copy { border-color: #6b7b8a; }
     .share-btn.copy:hover { background: rgba(107, 123, 138, 0.15); }
     
+    /* Energy prices link */
+    .energy-prices-link {
+      display: block;
+      text-align: center;
+      padding: 12px 16px;
+      margin: 12px 0;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.15));
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 10px;
+      color: #10b981;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .energy-prices-link:hover {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(59, 130, 246, 0.25));
+      border-color: rgba(16, 185, 129, 0.6);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    
+    /* Price info in share modal */
+    .share-price-info {
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
     /* Nickname button */
     #nickname-btn {
       display: flex;
@@ -561,9 +592,24 @@
         <div class="score-value" id="share-score">0</div>
         <div class="score-label" id="share-rank">points</div>
       </div>
+      
+      <!-- Price info display -->
+      <div id="share-price-info" class="share-price-info" style="display:none; text-align:center; margin-bottom:12px; padding:10px; background:rgba(59, 130, 246, 0.1); border-radius:10px; border:1px solid rgba(59, 130, 246, 0.3);">
+        <div style="font-size:12px; color:#9fb0c0; margin-bottom:4px;">📅 Reached</div>
+        <div id="share-price-date" style="font-size:15px; font-weight:600; color:#e6edf3;"></div>
+        <div style="font-size:12px; color:#9fb0c0; margin-top:6px;">⚡ Electricity price at that moment</div>
+        <div id="share-price-value" style="font-size:22px; font-weight:700; color:#60a5fa;"></div>
+      </div>
+      
       <p style="font-size:13px; color:#9fb0c0; text-align:center; margin-bottom:8px;">
         Challenge your friends to beat your score!
       </p>
+      
+      <!-- Energy Prices Link -->
+      <a href="https://www.epexspot.com/en/market-data" target="_blank" rel="noopener" class="energy-prices-link">
+        📊 View Real 2025 EPEX Energy Prices →
+      </a>
+      
       <div class="share-buttons">
         <button class="share-btn twitter" data-share="twitter">
           <span>𝕏</span> Twitter

@@ -100,21 +100,27 @@ function getOgImageUrl(score, rank, difficulty, nickname) {
 // --------- Social Sharing ----------
 const DIFFICULTY_NAMES = ['Easy', 'Normal', 'Hard'];
 
-function getShareText(score, rank, difficulty, nickname) {
+function getShareText(score, rank, difficulty, nickname, priceInfo = null) {
   const diffName = DIFFICULTY_NAMES[difficulty] || 'Unknown';
   const rankText = rank ? `#${rank}` : '';
   
+  // Format price info string if available
+  let priceText = '';
+  if (priceInfo && priceInfo.priceStr && priceInfo.dateStr) {
+    priceText = `Made it to ${priceInfo.dateStr} at ${priceInfo.hour}:00 when prices hit ${priceInfo.priceStr} EUR/MWh! `;
+  }
+  
   const messages = [
-    `I scored ${score} points on Wattbeat Energy 2025 ${diffName} mode! ${rankText ? `Ranked ${rankText} globally!` : ''} Can you beat me? ⚡🚀`,
-    `Just flew through 2025 electricity prices and scored ${score}! ${rankText ? `I'm ${rankText} on the ${diffName} leaderboard!` : ''} ⚡🎮`,
-    `${score} points navigating volatile energy markets in Wattbeat! ${rankText ? `${rankText} worldwide on ${diffName}!` : ''} Think you can do better? 🔥`,
+    `I scored ${score} points on Wattbeat Energy 2025 ${diffName} mode! ${priceText}${rankText ? `Ranked ${rankText} globally! ` : ''}Can you beat me? ⚡🚀`,
+    `Just flew through 2025 electricity prices and scored ${score}! ${priceText}${rankText ? `I'm ${rankText} on the ${diffName} leaderboard! ` : ''}⚡🎮`,
+    `${score} points navigating volatile energy markets in Wattbeat! ${priceText}${rankText ? `${rankText} worldwide on ${diffName}! ` : ''}Think you can do better? 🔥`,
   ];
   
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
-function shareToTwitter(score, rank, difficulty, nickname, url) {
-  const text = getShareText(score, rank, difficulty, nickname);
+function shareToTwitter(score, rank, difficulty, nickname, url, priceInfo = null) {
+  const text = getShareText(score, rank, difficulty, nickname, priceInfo);
   const twitterUrl = new URL('https://twitter.com/intent/tweet');
   twitterUrl.searchParams.set('text', text);
   twitterUrl.searchParams.set('url', url);
@@ -133,8 +139,8 @@ function shareToFacebook(url) {
   window.open(fbUrl.toString(), '_blank', 'width=550,height=420');
 }
 
-function shareToReddit(score, rank, difficulty, nickname, url) {
-  const title = getShareText(score, rank, difficulty, nickname);
+function shareToReddit(score, rank, difficulty, nickname, url, priceInfo = null) {
+  const title = getShareText(score, rank, difficulty, nickname, priceInfo);
   const redditUrl = new URL('https://www.reddit.com/submit');
   redditUrl.searchParams.set('url', url);
   redditUrl.searchParams.set('title', title);
@@ -163,13 +169,13 @@ async function copyToClipboard(url) {
   }
 }
 
-async function nativeShare(score, rank, difficulty, nickname, url) {
+async function nativeShare(score, rank, difficulty, nickname, url, priceInfo = null) {
   if (!navigator.share) return false;
   
   try {
     await navigator.share({
       title: 'Wattbeat Energy 2025',
-      text: getShareText(score, rank, difficulty, nickname),
+      text: getShareText(score, rank, difficulty, nickname, priceInfo),
       url: url
     });
     return true;
@@ -932,6 +938,10 @@ const state = {
   lastSubmittedRank: null, // Rank from last score submission
   nickname: '', // Player's nickname
   showShareModal: false, // Whether to show share modal
+  // Price tracking for sharing
+  levelPriceData: null, // Full price data with timestamps for current level
+  currentScorePrice: null, // Price info at current score { price, date, hour }
+  bestScorePrice: null, // Price info at best score { price, date, hour }
 };
 
 // --------- Failure Tracking System ----------
@@ -1539,6 +1549,14 @@ async function endRun(finished=false) {
   
   const cur = +$("diff").value;
   
+  // Capture price information at current position for sharing
+  if (state.level && state.levelPriceData) {
+    const idx = getLevelIndex();
+    const N = state.level.topY.length;
+    const progress = clamp(idx / (N - 1), 0, 1);
+    state.currentScorePrice = getPriceAtProgress(progress);
+  }
+  
   // Capture failure data if crashed (not finished)
   if (!finished && state.level) {
     captureFailure();
@@ -1592,8 +1610,14 @@ async function endRun(finished=false) {
   
   if (state.score > state.best) {
     state.best = state.score;
+    // Also store the price info for the best score
+    state.bestScorePrice = state.currentScorePrice;
     if (state.levelHash) {
       localStorage.setItem("wattbeat_energy2025_best_" + $("diff").value, String(Math.floor(state.best)));
+      // Store best score price info in localStorage
+      if (state.bestScorePrice) {
+        localStorage.setItem("wattbeat_energy2025_best_price_" + $("diff").value, JSON.stringify(state.bestScorePrice));
+      }
     }
   }
   
@@ -1830,6 +1854,32 @@ function filterRange(rows, startDate, endDate) {
   return out;
 }
 
+// Returns full row data (with timestamps) for price tracking
+function filterRangeWithTimestamps(rows, startDate, endDate) {
+  const end = new Date(endDate.getTime());
+  end.setHours(23,59,59,999);
+  const out = [];
+  for (const r of rows) if (r.t >= startDate && r.t <= end) out.push(r);
+  return out;
+}
+
+// Get price info at a given progress point (0 to 1)
+function getPriceAtProgress(progress) {
+  if (!state.levelPriceData || state.levelPriceData.length === 0) return null;
+  
+  const idx = Math.floor(clamp(progress, 0, 1) * (state.levelPriceData.length - 1));
+  const row = state.levelPriceData[idx];
+  if (!row) return null;
+  
+  return {
+    price: row.p,
+    date: row.t,
+    hour: row.t.getHours(),
+    dateStr: `${MONTHS[row.t.getMonth()]} ${row.t.getDate()}`,
+    priceStr: row.p.toFixed(2)
+  };
+}
+
 async function makeLevel() {
   const ds = "daprices-epex-elec.csv";
   const startS = "2025-01-01";
@@ -1855,6 +1905,11 @@ async function makeLevel() {
   }
 
   const prices = filterRange(state.rows, startD, endD);
+  // Store price data with timestamps for sharing features
+  state.levelPriceData = filterRangeWithTimestamps(state.rows, startD, endD);
+  state.currentScorePrice = null;
+  state.bestScorePrice = null;
+  
   const wrap = $("wrap");
   const H = wrap.clientHeight;
   const N = 7000;
@@ -1889,6 +1944,13 @@ const algo = "v1";
     state.graceUntil = performance.now() + 800;
     const bestStr = localStorage.getItem("wattbeat_energy2025_best_" + diff);
     state.best = bestStr ? parseInt(bestStr, 10) : 0;
+    // Load best score price from localStorage
+    try {
+      const bestPriceStr = localStorage.getItem("wattbeat_energy2025_best_price_" + diff);
+      state.bestScorePrice = bestPriceStr ? JSON.parse(bestPriceStr) : null;
+    } catch (e) {
+      state.bestScorePrice = null;
+    }
     state.playing = false;
     state.score = 0;
 
@@ -1980,6 +2042,11 @@ function showShareModal(scoreOverride = null) {
   const nickname = state.nickname || 'Anonymous';
   const url = getShareUrl(score, rank, diff, nickname);
   
+  // Determine which price info to use
+  // If sharing the best score, use bestScorePrice; otherwise use currentScorePrice
+  const isSharingBest = scoreOverride !== null && Math.floor(scoreOverride) === Math.floor(state.best);
+  const priceInfo = isSharingBest ? state.bestScorePrice : (state.currentScorePrice || state.bestScorePrice);
+  
   // Update modal content
   const scoreEl = $("share-score");
   if (scoreEl) scoreEl.textContent = score.toLocaleString();
@@ -1987,12 +2054,26 @@ function showShareModal(scoreOverride = null) {
   const rankEl = $("share-rank");
   if (rankEl) rankEl.textContent = rank ? `#${rank} on ${DIFFICULTY_NAMES[diff]}` : DIFFICULTY_NAMES[diff];
   
+  // Update price info display
+  const priceInfoEl = $("share-price-info");
+  const priceDateEl = $("share-price-date");
+  const priceValueEl = $("share-price-value");
+  
+  if (priceInfoEl && priceDateEl && priceValueEl && priceInfo) {
+    priceDateEl.textContent = `${priceInfo.dateStr} at ${priceInfo.hour}:00`;
+    priceValueEl.textContent = `${priceInfo.priceStr} EUR/MWh`;
+    priceInfoEl.style.display = 'block';
+  } else if (priceInfoEl) {
+    priceInfoEl.style.display = 'none';
+  }
+  
   // Store share data for buttons
   modal.dataset.score = score;
   modal.dataset.rank = rank || 0;
   modal.dataset.difficulty = diff;
   modal.dataset.nickname = nickname;
   modal.dataset.url = url;
+  modal.dataset.priceInfo = priceInfo ? JSON.stringify(priceInfo) : '';
   
   modal.classList.add('show');
 }
@@ -2013,9 +2094,20 @@ function handleShareButton(platform) {
   const nickname = modal.dataset.nickname || 'Anonymous';
   const url = modal.dataset.url || window.location.href;
   
+  // Get price info from modal dataset
+  let priceInfo = null;
+  try {
+    const priceInfoStr = modal.dataset.priceInfo;
+    if (priceInfoStr) {
+      priceInfo = JSON.parse(priceInfoStr);
+    }
+  } catch (e) {
+    priceInfo = null;
+  }
+  
   switch (platform) {
     case 'twitter':
-      shareToTwitter(score, rank, difficulty, nickname, url);
+      shareToTwitter(score, rank, difficulty, nickname, url, priceInfo);
       break;
     case 'linkedin':
       shareToLinkedIn(url);
@@ -2024,7 +2116,7 @@ function handleShareButton(platform) {
       shareToFacebook(url);
       break;
     case 'reddit':
-      shareToReddit(score, rank, difficulty, nickname, url);
+      shareToReddit(score, rank, difficulty, nickname, url, priceInfo);
       break;
     case 'copy':
       copyToClipboard(url).then(success => {
@@ -2032,7 +2124,7 @@ function handleShareButton(platform) {
       });
       break;
     case 'native':
-      nativeShare(score, rank, difficulty, nickname, url);
+      nativeShare(score, rank, difficulty, nickname, url, priceInfo);
       break;
   }
 }
