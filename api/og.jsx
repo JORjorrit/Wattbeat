@@ -1,4 +1,4 @@
-// Dynamic OG Image Generator for CaveFlyer Energy 2025
+// Dynamic OG Image Generator for Wattbeat Energy 2025
 // Uses @vercel/og to generate share card images
 
 import { ImageResponse } from '@vercel/og';
@@ -72,7 +72,7 @@ export default async function handler(req) {
                 letterSpacing: '-1px',
               }}
             >
-              CaveFlyer Energy 2025
+              Wattbeat Energy 2025
             </span>
             <span style={{ fontSize: '48px' }}>🚀</span>
           </div>

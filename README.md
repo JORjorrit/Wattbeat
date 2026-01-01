@@ -1,4 +1,4 @@
-# CaveFlyer Energy 2025
+# Wattbeat Energy 2025
 
 A tunnel flying game where the level is procedurally generated from EPEX electricity price data for 2025.
 

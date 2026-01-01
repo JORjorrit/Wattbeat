@@ -1,4 +1,4 @@
-// Social sharing utilities for CaveFlyer Energy 2025
+// Social sharing utilities for Wattbeat Energy 2025
 
 const DIFFICULTY_NAMES = ['Easy', 'Normal', 'Hard'];
 
@@ -10,9 +10,9 @@ export function getShareText(score, rank, difficulty, nickname) {
   const rankText = rank ? `#${rank}` : '';
   
   const messages = [
-    `I scored ${score} points on CaveFlyer Energy 2025 ${diffName} mode! ${rankText ? `Ranked ${rankText} globally!` : ''} Can you beat me? 🚀⚡`,
+    `I scored ${score} points on Wattbeat Energy 2025 ${diffName} mode! ${rankText ? `Ranked ${rankText} globally!` : ''} Can you beat me? 🚀⚡`,
     `Just flew through 2025 electricity prices and scored ${score}! ${rankText ? `I'm ${rankText} on the ${diffName} leaderboard!` : ''} ⚡🎮`,
-    `${score} points navigating volatile energy markets in CaveFlyer! ${rankText ? `${rankText} worldwide on ${diffName}!` : ''} Think you can do better? 🔥`,
+    `${score} points navigating volatile energy markets in Wattbeat! ${rankText ? `${rankText} worldwide on ${diffName}!` : ''} Think you can do better? 🔥`,
   ];
   
   return messages[Math.floor(Math.random() * messages.length)];
@@ -95,7 +95,7 @@ export async function nativeShare(score, rank, difficulty, nickname, url) {
   
   try {
     await navigator.share({
-      title: 'CaveFlyer Energy 2025',
+      title: 'Wattbeat Energy 2025',
       text: getShareText(score, rank, difficulty, nickname),
       url: url
     });

@@ -1,4 +1,4 @@
--- CaveFlyer Energy 2025 - Highscores Schema
+-- Wattbeat Energy 2025 - Highscores Schema
 -- Run this in your Supabase SQL Editor
 
 -- Create the highscores table

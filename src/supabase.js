@@ -1,4 +1,4 @@
-// Supabase client for CaveFlyer Energy 2025
+// Supabase client for Wattbeat Energy 2025
 // This file is used by both the frontend and API routes
 
 // For browser usage, we'll load these from a config endpoint or embed them
@@ -16,10 +16,10 @@ const SUPABASE_ANON_KEY = typeof process !== 'undefined' && process.env
 export function getSessionId() {
   if (typeof localStorage === 'undefined') return null;
   
-  let id = localStorage.getItem('caveflyer_session');
+  let id = localStorage.getItem('wattbeat_session');
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem('caveflyer_session', id);
+    localStorage.setItem('wattbeat_session', id);
   }
   return id;
 }
@@ -27,13 +27,13 @@ export function getSessionId() {
 // Get or set the player's nickname
 export function getNickname() {
   if (typeof localStorage === 'undefined') return 'Anonymous';
-  return localStorage.getItem('caveflyer_nickname') || '';
+  return localStorage.getItem('wattbeat_nickname') || '';
 }
 
 export function setNickname(name) {
   if (typeof localStorage === 'undefined') return;
   const sanitized = (name || '').trim().slice(0, 20);
-  localStorage.setItem('caveflyer_nickname', sanitized);
+  localStorage.setItem('wattbeat_nickname', sanitized);
   return sanitized;
 }
 

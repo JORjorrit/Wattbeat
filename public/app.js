@@ -998,13 +998,49 @@ function captureFailure() {
     console.warn("Could not save failure log:", e);
   }
   
+  // Always log to console for debugging
   console.log("📍 FAILURE CAPTURED:", failure);
+  
+  // Only update UI if debug mode is enabled
   updateFailureUI();
   
   return failure;
 }
 
+// Debug mode functions
+function isDebugMode() {
+  // Check URL parameter
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('debug') === 'true') return true;
+  
+  // Check localStorage
+  return localStorage.getItem('wattbeat_debug') === 'true';
+}
+
+function setDebugMode(enabled) {
+  if (enabled) {
+    localStorage.setItem('wattbeat_debug', 'true');
+  } else {
+    localStorage.removeItem('wattbeat_debug');
+  }
+  toggleDebugPanel();
+}
+
+function toggleDebugMode() {
+  setDebugMode(!isDebugMode());
+}
+
+function toggleDebugPanel() {
+  const panel = document.getElementById('failure-tracking-panel');
+  if (panel) {
+    panel.style.display = isDebugMode() ? 'block' : 'none';
+  }
+}
+
 function updateFailureUI() {
+  // Only update UI if debug mode is enabled
+  if (!isDebugMode()) return;
+  
   const panel = $("failure-panel");
   if (!panel) return;
   
@@ -1549,10 +1585,18 @@ async function endRun(finished=false) {
     // Celebration intensity: Hard gets a bigger show
     const intensity = cur === 2 ? 1.8 : cur === 1 ? 1.3 : 1.0;
     spawnFireworks(state, intensity);
-    
-    // Show share modal for completed runs
+  }
+  
+  // Show share modal on every game over (both finished and crashed)
+  if (state.score > 0) {
     state.showShareModal = true;
-    showShareModal();
+    // If no nickname is set, show nickname modal first with a note about leaderboard
+    if (!state.nickname) {
+      showNicknameModal('Set a nickname to submit your score to the leaderboard and share it!');
+    } else {
+      // Show share modal directly
+      showShareModal();
+    }
   }
 
   if (state.score > state.best) {
@@ -1866,16 +1910,13 @@ function updateStatsUI() {
 
 function copyShareLink() {
   if (!state.levelHash) return;
-  const diff = +$("diff").value;
+  // Show share modal with best score when clicking share button
   const best = Math.floor(state.best || 0);
-  const nickname = state.nickname || 'Anonymous';
-  const rank = state.lastSubmittedRank || 0;
-  
-  const url = getShareUrl(best, rank, diff, nickname);
-  copyToClipboard(url).then(success => {
-    if (success) toast("Share link copied!");
-    else toast("Failed to copy link");
-  });
+  if (best > 0) {
+    showShareModal(best);
+  } else {
+    toast("No score to share yet. Play a game first!");
+  }
 }
 
 // --------- Leaderboard Functions ----------
@@ -1921,12 +1962,12 @@ function escapeHtml(str) {
 }
 
 // --------- Share Modal Functions ----------
-function showShareModal() {
+function showShareModal(scoreOverride = null) {
   const modal = $("share-modal");
   if (!modal) return;
   
   const diff = +$("diff").value;
-  const score = Math.floor(state.score);
+  const score = scoreOverride !== null ? Math.floor(scoreOverride) : Math.floor(state.score);
   const rank = state.lastSubmittedRank;
   const nickname = state.nickname || 'Anonymous';
   const url = getShareUrl(score, rank, diff, nickname);
@@ -1989,11 +2030,22 @@ function handleShareButton(platform) {
 }
 
 // --------- Nickname Modal Functions ----------
-function showNicknameModal() {
+function showNicknameModal(customMessage = null) {
   const modal = $("nickname-modal");
   if (modal) {
     const input = $("nickname-input");
     if (input) input.value = state.nickname || '';
+    
+    // Update message if provided, otherwise use default
+    const p = modal.querySelector('p');
+    if (p) {
+      if (customMessage) {
+        p.textContent = customMessage;
+      } else {
+        p.textContent = 'Your nickname will appear on the global leaderboard when you complete the year!';
+      }
+    }
+    
     modal.classList.add('show');
     if (input) input.focus();
   }
@@ -2002,9 +2054,16 @@ function showNicknameModal() {
 function hideNicknameModal() {
   const modal = $("nickname-modal");
   if (modal) modal.classList.remove('show');
+  
+  // If share modal was requested, show it after closing nickname modal
+  if (state.showShareModal && state.score > 0) {
+    setTimeout(() => {
+      showShareModal();
+    }, 300);
+  }
 }
 
-function saveNickname() {
+async function saveNickname() {
   const input = $("nickname-input");
   if (input) {
     const name = setNickname(input.value);
@@ -2012,6 +2071,33 @@ function saveNickname() {
     updateNicknameDisplay();
     hideNicknameModal();
     toast(name ? `Welcome, ${name}!` : 'Playing anonymously');
+    
+    // If we have a score and share modal was requested, submit score and show share modal
+    if (state.showShareModal && state.score > 0 && name) {
+      const cur = +$("diff").value;
+      try {
+        const result = await submitScore(state.score, cur, name);
+        if (result.error) {
+          console.error('Score submission error:', result.error);
+          toast(`Failed to submit score: ${result.error}`);
+        } else if (result.rank) {
+          state.lastSubmittedRank = result.rank;
+          toast(`Score submitted! Rank #${result.rank}`);
+          refreshLeaderboard(cur);
+        } else {
+          toast('Score submitted!');
+          refreshLeaderboard(cur);
+        }
+      } catch (err) {
+        console.error('Failed to submit score:', err);
+        toast(`Failed to submit score: ${err.message}`);
+      }
+      
+      // Show share modal after submitting score
+      setTimeout(() => {
+        showShareModal();
+      }, 500);
+    }
   }
 }
 
@@ -2036,6 +2122,9 @@ async function init() {
   resize();
   applyQueryParams();
   
+  // Initialize debug mode (check URL param or localStorage)
+  toggleDebugPanel();
+  
   // Load nickname from localStorage
   state.nickname = getNickname();
   updateNicknameDisplay();
@@ -2050,6 +2139,15 @@ async function init() {
   } catch (e) {
     console.warn("Could not load failure log:", e);
   }
+  
+  // Add keyboard shortcut for debug mode (Ctrl+Shift+D)
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+      e.preventDefault();
+      toggleDebugMode();
+      toast(isDebugMode() ? 'Debug mode enabled' : 'Debug mode disabled');
+    }
+  });
 
   // Set up event listeners
   $("play").addEventListener("click", async () => { await makeLevel(); });
