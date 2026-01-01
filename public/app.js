@@ -100,9 +100,19 @@ function getOgImageUrl(score, rank, difficulty, nickname) {
 // --------- Social Sharing ----------
 const DIFFICULTY_NAMES = ['Easy', 'Normal', 'Hard'];
 
-function getShareText(score, rank, difficulty, nickname, priceInfo = null) {
+function getShareText(score, rank, difficulty, nickname, priceInfo = null, hasScore = true) {
   const diffName = DIFFICULTY_NAMES[difficulty] || 'Unknown';
   const rankText = rank ? `#${rank}` : '';
+  
+  // If no score, return invitation message
+  if (!hasScore || score <= 0) {
+    const inviteMessages = [
+      `Can you beat the 2025 electricity market? Try Wattbeat Energy 2025 — fly through real EPEX prices! ⚡🎮`,
+      `Navigate real 2025 electricity price volatility in this challenging game. How far can you get? ⚡🚀`,
+      `Think you understand energy markets? Prove it in Wattbeat Energy 2025 — fly through actual EPEX prices! 🔥`,
+    ];
+    return inviteMessages[Math.floor(Math.random() * inviteMessages.length)];
+  }
   
   // Format price info string if available
   let priceText = '';
@@ -119,8 +129,8 @@ function getShareText(score, rank, difficulty, nickname, priceInfo = null) {
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
-function shareToTwitter(score, rank, difficulty, nickname, url, priceInfo = null) {
-  const text = getShareText(score, rank, difficulty, nickname, priceInfo);
+function shareToTwitter(score, rank, difficulty, nickname, url, priceInfo = null, hasScore = true) {
+  const text = getShareText(score, rank, difficulty, nickname, priceInfo, hasScore);
   const twitterUrl = new URL('https://twitter.com/intent/tweet');
   twitterUrl.searchParams.set('text', text);
   twitterUrl.searchParams.set('url', url);
@@ -139,8 +149,8 @@ function shareToFacebook(url) {
   window.open(fbUrl.toString(), '_blank', 'width=550,height=420');
 }
 
-function shareToReddit(score, rank, difficulty, nickname, url, priceInfo = null) {
-  const title = getShareText(score, rank, difficulty, nickname, priceInfo);
+function shareToReddit(score, rank, difficulty, nickname, url, priceInfo = null, hasScore = true) {
+  const title = getShareText(score, rank, difficulty, nickname, priceInfo, hasScore);
   const redditUrl = new URL('https://www.reddit.com/submit');
   redditUrl.searchParams.set('url', url);
   redditUrl.searchParams.set('title', title);
@@ -169,13 +179,13 @@ async function copyToClipboard(url) {
   }
 }
 
-async function nativeShare(score, rank, difficulty, nickname, url, priceInfo = null) {
+async function nativeShare(score, rank, difficulty, nickname, url, priceInfo = null, hasScore = true) {
   if (!navigator.share) return false;
   
   try {
     await navigator.share({
       title: 'Wattbeat Energy 2025',
-      text: getShareText(score, rank, difficulty, nickname, priceInfo),
+      text: getShareText(score, rank, difficulty, nickname, priceInfo, hasScore),
       url: url
     });
     return true;
@@ -1979,14 +1989,9 @@ function updateStatsUI() {
 }
 
 function copyShareLink() {
-  if (!state.levelHash) return;
-  // Show share modal with best score when clicking share button
-  const best = Math.floor(state.best || 0);
-  if (best > 0) {
-    showShareModal(best);
-  } else {
-    toast("No score to share yet. Play a game first!");
-  }
+  // Show share modal - works with or without a score
+  const scoreToShare = Math.floor(state.score || state.best || 0);
+  showShareModal(scoreToShare > 0 ? scoreToShare : null);
 }
 
 // --------- Leaderboard Functions ----------
@@ -2037,10 +2042,15 @@ function showShareModal(scoreOverride = null) {
   if (!modal) return;
   
   const diff = +$("diff").value;
-  const score = scoreOverride !== null ? Math.floor(scoreOverride) : Math.floor(state.score);
+  const hasScore = scoreOverride !== null || state.score > 0 || state.best > 0;
+  const score = scoreOverride !== null ? Math.floor(scoreOverride) : Math.floor(state.score || state.best || 0);
   const rank = state.lastSubmittedRank;
   const nickname = state.nickname || 'Anonymous';
-  const url = getShareUrl(score, rank, diff, nickname);
+  
+  // Generate URL - for game sharing (no score) or score sharing
+  const url = hasScore && score > 0 
+    ? getShareUrl(score, rank, diff, nickname)
+    : window.location.origin; // Just share the game URL if no score
   
   // Determine which price info to use
   // If sharing the best score, use bestScorePrice; otherwise use currentScorePrice
@@ -2049,17 +2059,23 @@ function showShareModal(scoreOverride = null) {
   
   // Update modal content
   const scoreEl = $("share-score");
-  if (scoreEl) scoreEl.textContent = score.toLocaleString();
-  
   const rankEl = $("share-rank");
-  if (rankEl) rankEl.textContent = rank ? `#${rank} on ${DIFFICULTY_NAMES[diff]}` : DIFFICULTY_NAMES[diff];
+  
+  if (hasScore && score > 0) {
+    if (scoreEl) scoreEl.textContent = score.toLocaleString();
+    if (rankEl) rankEl.textContent = rank ? `#${rank} on ${DIFFICULTY_NAMES[diff]}` : DIFFICULTY_NAMES[diff];
+  } else {
+    // No score yet - show invitation to play
+    if (scoreEl) scoreEl.textContent = "⚡";
+    if (rankEl) rankEl.textContent = "Invite friends to play!";
+  }
   
   // Update price info display
   const priceInfoEl = $("share-price-info");
   const priceDateEl = $("share-price-date");
   const priceValueEl = $("share-price-value");
   
-  if (priceInfoEl && priceDateEl && priceValueEl && priceInfo) {
+  if (priceInfoEl && priceDateEl && priceValueEl && priceInfo && hasScore) {
     priceDateEl.textContent = `${priceInfo.dateStr} at ${priceInfo.hour}:00`;
     priceValueEl.textContent = `${priceInfo.priceStr} EUR/MWh`;
     priceInfoEl.style.display = 'block';
@@ -2074,6 +2090,7 @@ function showShareModal(scoreOverride = null) {
   modal.dataset.nickname = nickname;
   modal.dataset.url = url;
   modal.dataset.priceInfo = priceInfo ? JSON.stringify(priceInfo) : '';
+  modal.dataset.hasScore = hasScore ? 'true' : 'false';
   
   modal.classList.add('show');
 }
@@ -2093,6 +2110,7 @@ function handleShareButton(platform) {
   const difficulty = parseInt(modal.dataset.difficulty) || 0;
   const nickname = modal.dataset.nickname || 'Anonymous';
   const url = modal.dataset.url || window.location.href;
+  const hasScore = modal.dataset.hasScore === 'true';
   
   // Get price info from modal dataset
   let priceInfo = null;
@@ -2107,7 +2125,7 @@ function handleShareButton(platform) {
   
   switch (platform) {
     case 'twitter':
-      shareToTwitter(score, rank, difficulty, nickname, url, priceInfo);
+      shareToTwitter(score, rank, difficulty, nickname, url, priceInfo, hasScore);
       break;
     case 'linkedin':
       shareToLinkedIn(url);
@@ -2116,7 +2134,7 @@ function handleShareButton(platform) {
       shareToFacebook(url);
       break;
     case 'reddit':
-      shareToReddit(score, rank, difficulty, nickname, url, priceInfo);
+      shareToReddit(score, rank, difficulty, nickname, url, priceInfo, hasScore);
       break;
     case 'copy':
       copyToClipboard(url).then(success => {
@@ -2124,7 +2142,7 @@ function handleShareButton(platform) {
       });
       break;
     case 'native':
-      nativeShare(score, rank, difficulty, nickname, url, priceInfo);
+      nativeShare(score, rank, difficulty, nickname, url, priceInfo, hasScore);
       break;
   }
 }
@@ -2253,6 +2271,16 @@ async function init() {
   $("play").addEventListener("click", async () => { await makeLevel(); });
   $("share").addEventListener("click", copyShareLink);
   $("startover").addEventListener("click", () => { startOver(); });
+  
+  // Sidebar share button (always available, non-intrusive)
+  const sidebarShare = $("sidebar-share");
+  if (sidebarShare) {
+    sidebarShare.addEventListener("click", () => {
+      // Show share modal with current or best score
+      const scoreToShare = Math.floor(state.score || state.best || 0);
+      showShareModal(scoreToShare > 0 ? scoreToShare : null);
+    });
+  }
   
   // Nickname button
   const nicknameBtn = $("nickname-btn");
