@@ -430,6 +430,28 @@
     #nickname-btn:hover {
       background: #1b2b3f;
     }
+    
+    /* Mute button */
+    #mute-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      background: #0f1621;
+      border: 1px solid #233244;
+      border-radius: 999px;
+      font-size: 16px;
+      cursor: pointer;
+      min-width: 36px;
+      min-height: 36px;
+    }
+    #mute-btn:hover {
+      background: #1b2b3f;
+    }
+    #mute-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
   </style>
 </head>
 <body>
@@ -450,6 +472,9 @@
       <button id="nickname-btn" title="Set your nickname for the leaderboard">
         <span>👤</span>
         <span id="current-nickname">Set Nickname</span>
+      </button>
+      <button id="mute-btn" title="Toggle background music">
+        <span id="mute-icon">🔊</span>
       </button>
       <span id="unlock" class="pill">Loading…</span>
     </div>
@@ -562,6 +587,11 @@
     </div>
   </div>
 
+  <!-- Background Music -->
+  <audio id="bg-music" loop preload="auto">
+    <source src="Neon Faultline.mp3" type="audio/mpeg">
+  </audio>
+
   <script src="app.js"></script>
   <script>
     // Sidebar toggle for mobile
@@ -579,6 +609,49 @@
           sidebarToggle.textContent = '📊';
         }
       }, true);
+    }
+
+    // Background music control
+    const bgMusic = document.getElementById('bg-music');
+    const muteBtn = document.getElementById('mute-btn');
+    const muteIcon = document.getElementById('mute-icon');
+    
+    // Load mute state from localStorage
+    const isMuted = localStorage.getItem('wattbeat_music_muted') === 'true';
+    
+    // Initialize audio state
+    if (bgMusic && muteBtn && muteIcon) {
+      bgMusic.volume = 0.4; // Set volume to 40%
+      bgMusic.muted = isMuted;
+      muteIcon.textContent = isMuted ? '🔇' : '🔊';
+      
+      // Try to play music on user interaction (required by browsers)
+      const tryPlayMusic = () => {
+        if (!bgMusic.muted && bgMusic.paused) {
+          bgMusic.play().catch(err => {
+            console.log('Audio autoplay prevented:', err);
+          });
+        }
+      };
+      
+      // Try to play on first user interaction
+      document.addEventListener('click', tryPlayMusic, { once: true });
+      document.addEventListener('keydown', tryPlayMusic, { once: true });
+      
+      // Mute/unmute button handler
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering tryPlayMusic twice
+        bgMusic.muted = !bgMusic.muted;
+        localStorage.setItem('wattbeat_music_muted', bgMusic.muted ? 'true' : 'false');
+        muteIcon.textContent = bgMusic.muted ? '🔇' : '🔊';
+        
+        // If unmuting, try to play
+        if (!bgMusic.muted && bgMusic.paused) {
+          bgMusic.play().catch(err => {
+            console.log('Could not play audio:', err);
+          });
+        }
+      });
     }
   </script>
 </body>

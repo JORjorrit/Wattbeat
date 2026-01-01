@@ -1587,22 +1587,30 @@ async function endRun(finished=false) {
     spawnFireworks(state, intensity);
   }
   
-  // Show share modal on every game over (both finished and crashed)
-  if (state.score > 0) {
+  // Check if this is a new high score
+  const isNewHighScore = state.score > state.best;
+  
+  if (state.score > state.best) {
+    state.best = state.score;
+    if (state.levelHash) {
+      localStorage.setItem("wattbeat_energy2025_best_" + $("diff").value, String(Math.floor(state.best)));
+    }
+  }
+  
+  // Show share modal only on first time OR on new high score
+  const hasSeenShareModal = localStorage.getItem('wattbeat_has_seen_share_modal') === 'true';
+  const shouldShowShareModal = state.score > 0 && (!hasSeenShareModal || isNewHighScore);
+  
+  if (shouldShowShareModal) {
     state.showShareModal = true;
+    // Mark that user has seen the share modal
+    localStorage.setItem('wattbeat_has_seen_share_modal', 'true');
     // If no nickname is set, show nickname modal first with a note about leaderboard
     if (!state.nickname) {
       showNicknameModal('Set a nickname to submit your score to the leaderboard and share it!');
     } else {
       // Show share modal directly
       showShareModal();
-    }
-  }
-
-  if (state.score > state.best) {
-    state.best = state.score;
-    if (state.levelHash) {
-      localStorage.setItem("wattbeat_energy2025_best_" + $("diff").value, String(Math.floor(state.best)));
     }
   }
   updateStatsUI();
